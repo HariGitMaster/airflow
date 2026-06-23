@@ -1,0 +1,117 @@
+FROM amazonlinux:2023
+
+# ------------------------
+# Environment
+# ------------------------
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV AIRFLOW__GPL_UNIDECODE=yes
+
+ARG TMP_DIR=/tmp
+ARG ORA_VER=12.1
+ARG ORA_VERSION=12.1.0.2
+
+# ------------------------
+# Optional locale package
+# ------------------------
+RUN dnf install -y glibc-langpack-en || true
+
+# ------------------------
+# Defect fix - 7za
+# ------------------------
+RUN dnf install -y p7zip p7zip-plugins || true
+
+# ------------------------
+# Development tools
+# ------------------------
+RUN dnf groupinstall -y "Development Tools" || true
+
+RUN dnf install -y \
+        python3 \
+        python3-pip \
+        python3-devel \
+        openssl-devel \
+        bzip2-devel \
+        libffi-devel \
+        zlib-devel \
+        wget \
+        gcc \
+        gcc-c++ \
+        git \
+        curl-minimal \
+        tar \
+        postgresql-devel \
+        cyrus-sasl-devel \
+        libxslt-devel \
+        openldap-devel \
+        unixODBC \
+        libaio \
+        subversion \
+    || true
+
+RUN dnf clean all || true
+
+# ------------------------
+# Oracle client downloads
+# Replace URLs with your internal repo URLs
+# ------------------------
+WORKDIR ${TMP_DIR}
+
+RUN curl -O https://your-repo/oracle-instantclient-basic.rpm || true
+RUN curl -O https://your-repo/oracle-instantclient-devel.rpm || true
+RUN curl -O https://your-repo/oracle-instantclient-jdbc.rpm || true
+RUN curl -O https://your-repo/oracle-instantclient-odbc.rpm || true
+RUN curl -O https://your-repo/oracle-instantclient-sqlplus.rpm || true
+RUN curl -O https://your-repo/oracle-instantclient-tools.rpm || true
+
+RUN dnf localinstall -y \
+        /tmp/oracle-instantclient*.rpm \
+    || true
+
+# ------------------------
+# Python links
+# ------------------------
+RUN ln -sf /usr/bin/python3 /usr/bin/python \
+    && ln -sf /usr/bin/pip3 /usr/bin/pip
+
+# ------------------------
+# Install dumb-init only if missing
+# ------------------------
+RUN python3 -c "import dumb_init" \
+    || python3 -m pip install --no-cache-dir dumb-init
+
+RUN [ -f /usr/local/bin/dumb-init ] && \
+        ln -sf /usr/local/bin/dumb-init /usr/bin/dumb-init || true
+
+# ------------------------
+# New Relic
+# ------------------------
+RUN pip install --no-cache-dir newrelic || true
+
+RUN newrelic-admin generate-config REPLACE_ME /tmp/newrelic.ini || true
+
+RUN [ -f /tmp/newrelic.ini ] && \
+    sed -i '/license_key = /c\#license_key = REPLACE ME' /tmp/newrelic.ini && \
+    sed -i '/app_name = Python Application/c\#app_name = Python Application' /tmp/newrelic.ini && \
+    sed -i '/monitor_mode =/c\#monitor_mode =' /tmp/newrelic.ini && \
+    sed -i '/distributed_tracing.enabled = false/c\#distributed_tracing.enabled = false' /tmp/newrelic.ini \
+    || true
+
+# ------------------------
+# Airflow and providers
+# ------------------------
+RUN pip install --no-cache-dir \
+        "apache-airflow[crypto,celery,ldap,oracle,redis,s3]==2.7.1" \
+    && pip install --no-cache-dir psycopg2-binary==2.9.6 \
+    && pip install --no-cache-dir sqlalchemy==1.4.24 \
+    && pip install --no-cache-dir wtforms==3.0.1 \
+    && pip install --no-cache-dir apache-airflow-providers-http==4.5.2 \
+    && pip install --no-cache-dir apache-airflow-providers-oracle==3.7.4 \
+    && pip install --no-cache-dir oracledb==1.4.2 \
+    && pip install --no-cache-dir black==23.9.1 \
+    && pip install --no-cache-dir mypy==1.5.1 \
+    && pip install --no-cache-dir pylint==3.0.1 \
+    && pip install --no-cache-dir pytest-cov==4.0.0 \
+    && pip install --no-cache-dir pytest==7.1.0 \
+    && pip install --no-cache-dir numpy==1.26.0 \
+    && pip install --no-cache-dir connexion==2.14.2
