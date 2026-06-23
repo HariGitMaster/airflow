@@ -1,21 +1,14 @@
 FROM amazonlinux:2023
 
-# ------------------------
-# Environment
-# ------------------------
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV AIRFLOW__GPL_UNIDECODE=yes
 
 ARG TMP_DIR=/tmp
-ARG ORA_VER=12.1
-ARG ORA_VERSION=12.1.0.2
 ARG AIRFLOW_VERSION=2.7.1
 ARG PYTHON_VERSION=3.11
 
-# ------------------------
-# System Packages
-# ------------------------
+# Install packages
 RUN dnf update -y && \
     dnf install -y glibc-langpack-en && \
     dnf groupinstall -y "Development Tools" && \
@@ -39,59 +32,25 @@ RUN dnf update -y && \
         openldap-devel \
         unixODBC \
         libaio \
-        subversion \
-        dumb-init && \
+        subversion && \
     dnf clean all
 
-# ------------------------
-# Python Symlinks
-# ------------------------
+# Python links
 RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
     ln -sf /usr/bin/pip3.11 /usr/bin/pip
 
-# ------------------------
-# Oracle Instant Client
-# Replace URLs with your internal repository URLs
-# ------------------------
-WORKDIR ${TMP_DIR}
-
-RUN curl -L -o oracle-instantclient-basic.rpm https://your-repo/oracle-instantclient-basic.rpm
-RUN curl -L -o oracle-instantclient-devel.rpm https://your-repo/oracle-instantclient-devel.rpm
-RUN curl -L -o oracle-instantclient-jdbc.rpm https://your-repo/oracle-instantclient-jdbc.rpm
-RUN curl -L -o oracle-instantclient-odbc.rpm https://your-repo/oracle-instantclient-odbc.rpm
-RUN curl -L -o oracle-instantclient-sqlplus.rpm https://your-repo/oracle-instantclient-sqlplus.rpm
-RUN curl -L -o oracle-instantclient-tools.rpm https://your-repo/oracle-instantclient-tools.rpm
-
-RUN dnf localinstall -y /tmp/oracle-instantclient*.rpm
-
-# ------------------------
 # Upgrade pip
-# ------------------------
 RUN pip install --upgrade pip setuptools wheel
 
-# ------------------------
 # New Relic
-# ------------------------
 RUN pip install --no-cache-dir newrelic
 
-RUN newrelic-admin generate-config REPLACE_ME /tmp/newrelic.ini
-
-RUN sed -i '/license_key = /c\#license_key = REPLACE ME' /tmp/newrelic.ini && \
-    sed -i '/app_name = Python Application/c\#app_name = Python Application' /tmp/newrelic.ini && \
-    sed -i '/monitor_mode =/c\#monitor_mode =' /tmp/newrelic.ini && \
-    sed -i '/distributed_tracing.enabled = false/c\#distributed_tracing.enabled = false' /tmp/newrelic.ini
-
-# ------------------------
-# Apache Airflow
-# ------------------------
+# Airflow
 RUN pip install --no-cache-dir \
     "apache-airflow[crypto,celery,ldap,oracle,redis,s3]==${AIRFLOW_VERSION}" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
 
-# ------------------------
-# Additional Packages
-# ------------------------
+# Additional packages
 RUN pip install --no-cache-dir \
     psycopg2-binary==2.9.6 \
     sqlalchemy==1.4.24 \
@@ -107,18 +66,6 @@ RUN pip install --no-cache-dir \
     numpy==1.26.0 \
     connexion==2.14.2
 
-# ------------------------
-# Verify Installation
-# ------------------------
-RUN python --version && \
-    pip --version && \
-    airflow version
-
-# ------------------------
-# Default Working Directory
-# ------------------------
 WORKDIR /opt/airflow
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 
 CMD ["/bin/bash"]
