@@ -1,0 +1,71 @@
+FROM amazonlinux:latest
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV AIRFLOW__GPL_UNIDECODE=yes
+
+ARG TMP_DIR=/tmp
+ARG AIRFLOW_VERSION=2.7.1
+ARG PYTHON_VERSION=3
+
+# Install packages
+RUN dnf update -y && \
+    dnf install -y glibc-langpack-en && \
+    dnf groupinstall -y "Development Tools" && \
+    dnf install -y \
+        python3 \
+        python3-pip \
+        python3-devel \
+        openssl-devel \
+        bzip2-devel \
+        libffi-devel \
+        zlib-devel \
+        wget \
+        gcc \
+        gcc-c++ \
+        git \
+        curl-minimal \
+        tar \
+        postgresql-devel \
+        cyrus-sasl-devel \
+        libxslt-devel \
+        openldap-devel \
+        unixODBC \
+        libaio \
+        subversion && \
+    dnf clean all
+
+# Python links
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    ln -sf /usr/bin/pip3.11 /usr/bin/pip
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# New Relic
+RUN pip install --no-cache-dir newrelic
+
+# Airflow
+RUN pip install --no-cache-dir \
+    "apache-airflow[crypto,celery,ldap,oracle,redis,s3]==2.10.5" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+# Additional packages
+RUN pip install --no-cache-dir \
+    psycopg2-binary==2.9.6 \
+    sqlalchemy==1.4.24 \
+    wtforms==3.0.1 \
+    apache-airflow-providers-http==4.5.2 \
+    apache-airflow-providers-oracle==3.7.4 \
+    oracledb==1.4.2 \
+    black==23.9.1 \
+    mypy==1.5.1 \
+    pylint==3.0.1 \
+    pytest-cov==4.0.0 \
+    pytest==7.1.0 \
+    numpy==1.26.0 \
+    connexion==2.14.2
+
+WORKDIR /opt/airflow
+
+CMD ["/bin/bash"]
