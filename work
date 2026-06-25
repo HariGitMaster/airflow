@@ -116,12 +116,7 @@ RUN python3 -m pip install \
     apache-airflow-providers-cncf-kubernetes \
     apache-airflow-providers-docker \
     apache-airflow-providers-common-sql \
-    apache-airflow-providers-mysql \
-    apache-airflow-providers-oracle \
-    apache-airflow-providers-slack \
-    apache-airflow-providers-apache-kafka \
-    apache-airflow-providers-apache-spark \
-    apache-airflow-providers-openlineage
+    apache-airflow-providers-slack
 
 # -----------------------------------------------------------------------------
 # Create Airflow User
