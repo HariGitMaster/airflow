@@ -1,4 +1,3 @@
-```dockerfile
 FROM amazonlinux:2023
 
 LABEL maintainer="Srikanth"
@@ -165,4 +164,3 @@ airflow users create \
 --password admin || true && \
 airflow scheduler & \
 exec airflow webserver"
-```
