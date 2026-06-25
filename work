@@ -16,11 +16,10 @@ ENV LANG=C.UTF-8 \
 # -----------------------------------------------------------------------------
 # Update OS & Install Dependencies
 # -----------------------------------------------------------------------------
-RUN dnf update -y && \
-    dnf groupinstall -y "Development Tools" && \
+RUN dnf groupinstall -y "Development Tools" && \
     dnf install -y \
         wget \
-        curl \
+        curl-minimal \
         git \
         unzip \
         zip \
@@ -28,10 +27,12 @@ RUN dnf update -y && \
         make \
         gcc \
         gcc-c++ \
+        ca-certificates \
         openssl-devel \
         bzip2-devel \
         libffi-devel \
         zlib-devel \
+        xz \
         xz-devel \
         readline-devel \
         sqlite-devel \
@@ -51,6 +52,7 @@ RUN dnf update -y && \
         procps-ng \
         hostname \
         openssh-clients && \
+    update-ca-trust && \
     dnf clean all
 
 # -----------------------------------------------------------------------------
@@ -60,32 +62,32 @@ RUN cd /usr/src && \
     wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
     tar -xzf Python-${PYTHON_VERSION}.tgz && \
     cd Python-${PYTHON_VERSION} && \
-    ./configure --enable-optimizations && \
+    ./configure --enable-optimizations --with-ensurepip=install && \
     make -j$(nproc) && \
     make altinstall && \
     ln -sf /usr/local/bin/python3.11 /usr/bin/python3 && \
     ln -sf /usr/local/bin/pip3.11 /usr/bin/pip3 && \
     python3 --version && \
-    pip3 --version && \
+    python3 -m pip --version && \
     cd / && \
     rm -rf /usr/src/Python-${PYTHON_VERSION}*
 
 # -----------------------------------------------------------------------------
 # Upgrade pip
 # -----------------------------------------------------------------------------
-RUN pip3 install --upgrade pip setuptools wheel
+RUN python3 -m pip install ... --upgrade pip setuptools wheel
 
 # -----------------------------------------------------------------------------
 # Install Apache Airflow
 # -----------------------------------------------------------------------------
-RUN pip3 install \
+RUN python3 -m pip install ... \
     "apache-airflow==${AIRFLOW_VERSION}" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.11.txt"
 
 # -----------------------------------------------------------------------------
 # Install Common Python Packages
 # -----------------------------------------------------------------------------
-RUN pip3 install \
+RUN python3 -m pip install ... \
     boto3 \
     pandas \
     numpy \
@@ -103,7 +105,7 @@ RUN pip3 install \
 # -----------------------------------------------------------------------------
 # Install Airflow Providers
 # -----------------------------------------------------------------------------
-RUN pip3 install \
+RUN python3 -m pip install ... \
     apache-airflow-providers-amazon \
     apache-airflow-providers-postgres \
     apache-airflow-providers-http \
