@@ -75,19 +75,19 @@ RUN cd /usr/src && \
 # -----------------------------------------------------------------------------
 # Upgrade pip
 # -----------------------------------------------------------------------------
-RUN python3 -m pip install ... --upgrade pip setuptools wheel
+RUN python3 -m pip install --upgrade pip setuptools wheel
 
 # -----------------------------------------------------------------------------
 # Install Apache Airflow
 # -----------------------------------------------------------------------------
-RUN python3 -m pip install ... \
+RUN python3 -m pip install \
     "apache-airflow==${AIRFLOW_VERSION}" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.11.txt"
 
 # -----------------------------------------------------------------------------
 # Install Common Python Packages
 # -----------------------------------------------------------------------------
-RUN python3 -m pip install ... \
+RUN python3 -m pip install \
     boto3 \
     pandas \
     numpy \
@@ -105,7 +105,7 @@ RUN python3 -m pip install ... \
 # -----------------------------------------------------------------------------
 # Install Airflow Providers
 # -----------------------------------------------------------------------------
-RUN python3 -m pip install ... \
+RUN python3 -m pip install \
     apache-airflow-providers-amazon \
     apache-airflow-providers-postgres \
     apache-airflow-providers-http \
