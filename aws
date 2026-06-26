@@ -1,0 +1,163 @@
+FROM amazonlinux:2023
+
+LABEL maintainer="Srikanth"
+
+# -----------------------------------------------------------------------------
+# Environment Variables
+# -----------------------------------------------------------------------------
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    AIRFLOW_HOME=/opt/airflow \
+    AIRFLOW_VERSION=2.10.3 \
+    PYTHON_VERSION=3.11.10 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+# -----------------------------------------------------------------------------
+# Update OS & Install Dependencies
+# -----------------------------------------------------------------------------
+RUN dnf groupinstall -y "Development Tools" && \
+    dnf install -y \
+        wget \
+        curl-minimal \
+        git \
+        unzip \
+        zip \
+        tar \
+        make \
+        gcc \
+        gcc-c++ \
+        ca-certificates \
+        openssl-devel \
+        bzip2-devel \
+        libffi-devel \
+        zlib-devel \
+        xz \
+        xz-devel \
+        readline-devel \
+        sqlite-devel \
+        tk-devel \
+        gdbm-devel \
+        ncurses-devel \
+        libuuid-devel \
+        libxml2-devel \
+        libxslt-devel \
+        krb5-devel \
+        postgresql-devel \
+        cyrus-sasl-devel \
+        openldap-devel \
+        shadow-utils \
+        findutils \
+        which \
+        procps-ng \
+        hostname \
+        openssh-clients && \
+    update-ca-trust && \
+    dnf clean all
+
+# -----------------------------------------------------------------------------
+# Build Python 3.11
+# -----------------------------------------------------------------------------
+RUN cd /usr/src && \
+    wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
+    tar -xzf Python-${PYTHON_VERSION}.tgz && \
+    cd Python-${PYTHON_VERSION} && \
+    ./configure --enable-optimizations --with-ensurepip=install && \
+    make -j$(nproc) && \
+    make altinstall && \
+    ln -sf /usr/local/bin/python3.11 /usr/bin/python3 && \
+    ln -sf /usr/local/bin/pip3.11 /usr/bin/pip3 && \
+    python3 --version && \
+    python3 -m pip --version && \
+    cd / && \
+    rm -rf /usr/src/Python-${PYTHON_VERSION}*
+
+# -----------------------------------------------------------------------------
+# Upgrade pip
+# -----------------------------------------------------------------------------
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+# -----------------------------------------------------------------------------
+# Install Apache Airflow
+# -----------------------------------------------------------------------------
+RUN python3 -m pip install \
+    "apache-airflow==${AIRFLOW_VERSION}" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.11.txt"
+
+# -----------------------------------------------------------------------------
+# Install Common Python Packages
+# -----------------------------------------------------------------------------
+RUN python3 -m pip install \
+    boto3 \
+    pandas \
+    numpy \
+    scipy \
+    requests \
+    PyYAML \
+    redis \
+    sqlalchemy \
+    alembic \
+    cryptography \
+    paramiko \
+    gunicorn \
+    psycopg2-binary
+
+# -----------------------------------------------------------------------------
+# Install Airflow Providers
+# -----------------------------------------------------------------------------
+RUN python3 -m pip install \
+    apache-airflow-providers-amazon \
+    apache-airflow-providers-postgres \
+    apache-airflow-providers-http \
+    apache-airflow-providers-ssh \
+    apache-airflow-providers-ftp \
+    apache-airflow-providers-sftp \
+    apache-airflow-providers-google \
+    apache-airflow-providers-cncf-kubernetes \
+    apache-airflow-providers-docker \
+    apache-airflow-providers-common-sql \
+    apache-airflow-providers-slack
+
+# -----------------------------------------------------------------------------
+# Create Airflow User
+# -----------------------------------------------------------------------------
+RUN useradd -ms /bin/bash airflow
+
+# -----------------------------------------------------------------------------
+# Airflow Directories
+# -----------------------------------------------------------------------------
+RUN mkdir -p \
+    ${AIRFLOW_HOME}/dags \
+    ${AIRFLOW_HOME}/logs \
+    ${AIRFLOW_HOME}/plugins && \
+    chown -R airflow:airflow ${AIRFLOW_HOME}
+
+WORKDIR ${AIRFLOW_HOME}
+
+USER airflow
+
+# -----------------------------------------------------------------------------
+# Expose Airflow UI
+# -----------------------------------------------------------------------------
+EXPOSE 8080
+
+# -----------------------------------------------------------------------------
+# Health Check
+# -----------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=5 \
+CMD curl -f http://localhost:8080/health || exit 1
+
+# -----------------------------------------------------------------------------
+# Start Airflow
+# -----------------------------------------------------------------------------
+CMD bash -c "\
+airflow db migrate && \
+airflow users create \
+--username admin \
+--firstname Admin \
+--lastname User \
+--role Admin \
+--email admin@example.com \
+--password admin || true && \
+airflow scheduler & \
+exec airflow webserver"
